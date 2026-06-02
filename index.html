@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATRIX II Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header id="setup-header">
+        <h2><em>ALYSEUM</em> - MATRIX II editor <span class="revision">V.2</span></h2>
+        <p class="subtitle">Two MIDI ports (In and Out) are required; otherwise, use Demo mode</p>
+        
+        <div id="browser-warning" class="warning-box hidden">
+            <strong>MIDI Error:</strong> Your browser does not support Web MIDI with SysEx permissions. <br>
+            Please use <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong>.
+        </div>
+        
+        <div id="midi-setup">
+            <div class="port-select">
+                <label for="midi-in">MIDI In port</label>
+                <select id="midi-in"><option value="">Please Select</option></select>
+            </div>
+            <div class="port-select">
+                <label for="midi-out">MIDI Out port</label>
+                <select id="midi-out"><option value="">Please Select</option></select>
+            </div>
+        </div>
+        
+        <div class="header-buttons">
+            <div class="btn-container">
+                <button id="btn-demo" class="btn btn-demo">Demo</button>
+            </div>
+            <div class="btn-container">
+                <button id="btn-connect" class="btn btn-primary" disabled>Connect</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="app-container" class="hidden">
+        
+        <section id="matrix-section">
+            <div id="matrix-container">
+                </div>
+        </section>
+
+        <aside id="sidebar">
+            <div class="sidebar-group" style="border-top: none; padding-top: 0;">
+                <label style="color: #bbb; font-size: 14px; text-align: center; display: block; margin-bottom: 5px;">Live Mode</label>
+                <button id="btn-live-mode" class="btn-secondary">Live Mode: OFF</button>
+            </div>
+
+            <div class="sidebar-group">
+                <h3>Hardware Memory</h3>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <select id="bank-select" style="flex: 1;"></select>
+                    <select id="preset-select" style="flex: 1;"></select>
+                </div>
+                <button id="btn-send-preset" class="btn-primary" style="width: 100%; border-radius: 5px; height: auto; padding: 10px;">Send Preset to Matrix</button>
+            </div>
+
+            <div class="sidebar-group">
+                <h3>File Management</h3>
+                <button id="btn-dump-rx" class="btn-secondary">Save to Computer (.json)</button>
+                <button id="btn-dump-tx" class="btn-secondary">Load from Computer</button>
+                <input type="file" id="file-upload" class="hidden" accept=".json">
+            </div>
+
+            <div class="sidebar-group">
+                <button id="btn-clear">Clear Matrix Routing</button>
+            </div>
+            
+            <div class="sidebar-group" style="margin-top: auto;">
+                <div id="status-bar" class="status-bar">Initializing...</div>
+            </div>
+        </aside>
+
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
