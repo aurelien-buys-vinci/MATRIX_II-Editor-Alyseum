@@ -6,7 +6,7 @@ function getSavedMemory() {
         const saved = localStorage.getItem('matrix2Memory');
         if (saved) return JSON.parse(saved);
     } catch (e) {
-        console.error("Erreur de lecture de la mémoire locale", e);
+        console.error("Error reading local memory", e);
     }
     // Structure: 7 Banks -> 32 Presets -> 16 Routing bytes
     return Array(7).fill(null).map(() => Array(32).fill(null).map(() => new Array(16).fill(0)));
@@ -105,7 +105,7 @@ function syncActiveStateToMemory() {
     // Save to active RAM
     memoryBank[bank][preset] = [...routingState];
     
-    // NEW: Save to browser's LocalStorage instantly
+    // Save to browser's LocalStorage instantly
     localStorage.setItem('matrix2Memory', JSON.stringify(memoryBank));
 }
 
@@ -309,10 +309,13 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
             generateMatrixGrid();
             loadPresetToGrid();
             
-            alert("Configuration chargée et sauvegardée dans le navigateur avec succès !");
+            // 4. If Live Mode is ON, immediately push the loaded grid to the hardware
+            if (isLiveMode) {
+                sendMatrixRoutingTable();
+            }
             
         } catch (err) {
-            alert("Erreur de lecture. Assurez-vous qu'il s'agit d'un fichier MATRIX II JSON valide.");
+            alert("Read error. Please ensure this is a valid MATRIX II JSON file.");
             console.error(err);
         }
     };
@@ -348,6 +351,9 @@ document.getElementById('btn-live-mode').addEventListener('click', (e) => {
     isLiveMode = !isLiveMode;
     e.target.innerText = isLiveMode ? "Live Mode: ON" : "Live Mode: OFF";
     e.target.classList.toggle('active', isLiveMode);
+    if (isLiveMode) {
+        sendMatrixRoutingTable();
+    }
 });
 
 document.getElementById('btn-send-preset').onclick = sendMatrixRoutingTable;
