@@ -10,10 +10,10 @@ function getSavedMemory() {
 }
 
 let memoryBank = getSavedMemory();
-let routingState = new Array(16).fill(0);
+let routingState = new Array(16).fill(0); 
 let midiAccess = null;
-let midiOutPort = null; // MIDI IN removed
-let hardwareRevision = 'R.05'; // Default revision
+let midiOutPort = null;
+let hardwareRevision = 'R.05'; 
 let isDemoMode = false;
 let isLiveMode = false;
 
@@ -46,7 +46,6 @@ function populateMidiPorts() {
 
     if (activeOutValue) outSelect.value = activeOutValue;
 
-    // Connect button depends solely on the Out Port now
     const checkPortSelections = () => {
         btnConnect.disabled = (outSelect.value === "");
     };
@@ -158,10 +157,9 @@ function generateMatrixGrid() {
                 label.id = `label-out-${col}`;
                 label.className = 'axis-label top';
                 
-                // Hardware specific rendering for Output 16
                 if (isHardwareRestricted) {
                     label.innerText = "N/A";
-                    label.style.color = "#555"; // Greyed out look
+                    label.style.color = "#555"; 
                 } else {
                     label.innerText = savedLabels[label.id] || `OUT ${col}`;
                     makeHeaderEditable(label);
@@ -186,7 +184,6 @@ function generateMatrixGrid() {
                 ledButton.dataset.in = inIdx;
                 ledButton.dataset.out = outIdx;
                 
-                // Lock cells entirely for restricted R.03 columns
                 if (isHardwareRestricted) {
                     ledButton.disabled = true;
                     ledButton.title = "Not editable in Revision R.03";
@@ -226,24 +223,39 @@ function handleCellToggle(inNum, outNum) {
     if (isLiveMode) sendMatrixRoutingTable();
 }
 
+/* FIXED: Column 16 visual bypass implemented for R.03 */
 function refreshMatrixVisuals() {
     document.querySelectorAll('.cell').forEach(cell => {
         const inVal = parseInt(cell.dataset.in, 10);
         const outVal = parseInt(cell.dataset.out, 10);
         
-        if (routingState[outVal - 1] === inVal) cell.classList.add('on');
-        else cell.classList.remove('on');
+        if (hardwareRevision === 'R.03' && outVal === 16) {
+            cell.classList.remove('on');
+        } else if (routingState[outVal - 1] === inVal) {
+            cell.classList.add('on');
+        } else {
+            cell.classList.remove('on');
+        }
     });
 }
 
 // --- OUTBOUND SYSEX & MIDI INTERFACES ---
+/* FIXED: Added explicit hardware validation constraint filter for R.03 */
 function sendMatrixRoutingTable() {
     if (isDemoMode || !midiOutPort) return;
     const bank = parseInt(document.getElementById('bank-select').value, 10);
     const preset = parseInt(document.getElementById('preset-select').value, 10);
 
+    // Create a clean data copy to prevent breaking volatile memory data sets
+    let transmissionRouting = [...routingState];
+    
+    // Hard overwrite the 16th channel byte array element map to 0 if running R.03 architecture
+    if (hardwareRevision === 'R.03') {
+        transmissionRouting[15] = 0;
+    }
+
     let messagePayload = [...SYSEX_HEADER, 0x01, bank, preset];
-    messagePayload = messagePayload.concat(routingState);
+    messagePayload = messagePayload.concat(transmissionRouting);
     messagePayload.push(0xF7);
 
     midiOutPort.send(messagePayload);
