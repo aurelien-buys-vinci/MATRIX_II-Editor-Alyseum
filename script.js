@@ -1,6 +1,4 @@
 // --- GLOBAL APPLICATION STATE ---
-
-// Fetch memory from localStorage or generate a fresh 7x32x16 empty structure
 function getSavedMemory() {
     try {
         const saved = localStorage.getItem('matrix2Memory');
@@ -8,15 +6,14 @@ function getSavedMemory() {
     } catch (e) {
         console.error("Error reading local memory", e);
     }
-    // Structure: 7 Banks -> 32 Presets -> 16 Routing bytes
     return Array(7).fill(null).map(() => Array(32).fill(null).map(() => new Array(16).fill(0)));
 }
 
 let memoryBank = getSavedMemory();
-let routingState = new Array(16).fill(0); // Active viewing state
+let routingState = new Array(16).fill(0);
 let midiAccess = null;
-let midiInPort = null;
-let midiOutPort = null;
+let midiOutPort = null; // MIDI IN removed
+let hardwareRevision = 'R.05'; // Default revision
 let isDemoMode = false;
 let isLiveMode = false;
 
@@ -37,27 +34,23 @@ async function startMidiInitialization() {
 }
 
 function populateMidiPorts() {
-    const inSelect = document.getElementById('midi-in');
     const outSelect = document.getElementById('midi-out');
     const btnConnect = document.getElementById('btn-connect');
     
-    const activeInValue = inSelect.value;
     const activeOutValue = outSelect.value;
-
-    inSelect.innerHTML = '<option value="">Please Select</option>';
     outSelect.innerHTML = '<option value="">Please Select</option>';
 
-    for (const input of midiAccess.inputs.values()) inSelect.add(new Option(input.name, input.id));
-    for (const output of midiAccess.outputs.values()) outSelect.add(new Option(output.name, output.id));
+    for (const output of midiAccess.outputs.values()) {
+        outSelect.add(new Option(output.name, output.id));
+    }
 
-    if (activeInValue) inSelect.value = activeInValue;
     if (activeOutValue) outSelect.value = activeOutValue;
 
+    // Connect button depends solely on the Out Port now
     const checkPortSelections = () => {
-        btnConnect.disabled = (inSelect.value === "" || outSelect.value === "");
+        btnConnect.disabled = (outSelect.value === "");
     };
 
-    inSelect.addEventListener('change', checkPortSelections);
     outSelect.addEventListener('change', checkPortSelections);
     checkPortSelections();
 }
@@ -68,14 +61,13 @@ function launchEditorEnvironment() {
     
     const statusBar = document.getElementById('status-bar');
     if (isDemoMode) {
-        statusBar.innerText = "Running in DEMO Mode (Outputs bypassed)";
+        statusBar.innerText = `Running in DEMO Mode (${hardwareRevision})`;
         statusBar.style.color = "#ff4444";
     } else {
-        statusBar.innerText = "MIDI Connection active";
+        statusBar.innerText = `MIDI Connection active (${hardwareRevision})`;
         statusBar.style.color = "#00aa00";
     }
 
-    // Populate Sidebar Selectors
     const bankSelect = document.getElementById('bank-select');
     if(bankSelect.options.length === 0) {
         for (let i = 1; i <= 7; i++) bankSelect.add(new Option('Bank ' + i, i - 1));
@@ -83,7 +75,6 @@ function launchEditorEnvironment() {
         for (let i = 1; i <= 32; i++) presetSelect.add(new Option('Preset ' + i, i - 1));
     }
 
-    // Load initial memory mapping
     loadPresetToGrid();
     generateMatrixGrid();
 }
@@ -92,8 +83,6 @@ function launchEditorEnvironment() {
 function loadPresetToGrid() {
     const bank = parseInt(document.getElementById('bank-select').value, 10);
     const preset = parseInt(document.getElementById('preset-select').value, 10);
-    
-    // Deep copy from internal memory to working state
     routingState = [...memoryBank[bank][preset]];
     refreshMatrixVisuals();
 }
@@ -101,11 +90,7 @@ function loadPresetToGrid() {
 function syncActiveStateToMemory() {
     const bank = parseInt(document.getElementById('bank-select').value, 10);
     const preset = parseInt(document.getElementById('preset-select').value, 10);
-    
-    // Save to active RAM
     memoryBank[bank][preset] = [...routingState];
-    
-    // Save to browser's LocalStorage instantly
     localStorage.setItem('matrix2Memory', JSON.stringify(memoryBank));
 }
 
@@ -162,6 +147,9 @@ function generateMatrixGrid() {
 
     for (let row = 0; row <= 16; row++) {
         for (let col = 0; col <= 16; col++) {
+            
+            const isHardwareRestricted = (hardwareRevision === 'R.03' && col === 16);
+
             if (row === 0 && col === 0) {
                 grid.appendChild(document.createElement('div'));
             } 
@@ -169,8 +157,16 @@ function generateMatrixGrid() {
                 const label = document.createElement('div');
                 label.id = `label-out-${col}`;
                 label.className = 'axis-label top';
-                label.innerText = savedLabels[label.id] || `OUT ${col}`;
-                makeHeaderEditable(label);
+                
+                // Hardware specific rendering for Output 16
+                if (isHardwareRestricted) {
+                    label.innerText = "N/A";
+                    label.style.color = "#555"; // Greyed out look
+                } else {
+                    label.innerText = savedLabels[label.id] || `OUT ${col}`;
+                    makeHeaderEditable(label);
+                }
+                
                 grid.appendChild(label);
             } 
             else if (col === 0) {
@@ -190,16 +186,22 @@ function generateMatrixGrid() {
                 ledButton.dataset.in = inIdx;
                 ledButton.dataset.out = outIdx;
                 
-                ledButton.onclick = () => handleCellToggle(inIdx, outIdx);
-                
-                ledButton.onmouseenter = () => {
-                    document.getElementById(`label-in-${inIdx}`).classList.add('highlight');
-                    document.getElementById(`label-out-${outIdx}`).classList.add('highlight');
-                };
-                ledButton.onmouseleave = () => {
-                    document.getElementById(`label-in-${inIdx}`).classList.remove('highlight');
-                    document.getElementById(`label-out-${outIdx}`).classList.remove('highlight');
-                };
+                // Lock cells entirely for restricted R.03 columns
+                if (isHardwareRestricted) {
+                    ledButton.disabled = true;
+                    ledButton.title = "Not editable in Revision R.03";
+                } else {
+                    ledButton.onclick = () => handleCellToggle(inIdx, outIdx);
+                    
+                    ledButton.onmouseenter = () => {
+                        document.getElementById(`label-in-${inIdx}`).classList.add('highlight');
+                        document.getElementById(`label-out-${outIdx}`).classList.add('highlight');
+                    };
+                    ledButton.onmouseleave = () => {
+                        document.getElementById(`label-in-${inIdx}`).classList.remove('highlight');
+                        document.getElementById(`label-out-${outIdx}`).classList.remove('highlight');
+                    };
+                }
 
                 grid.appendChild(ledButton);
             }
@@ -294,22 +296,18 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
         try {
             const data = JSON.parse(event.target.result);
             
-            // 1. Restore Labels
             if (data.labels) {
                 localStorage.setItem('matrix2Labels', JSON.stringify(data.labels));
             }
 
-            // 2. Restore Presets Memory and save to LocalStorage immediately
             if (data.presets && Array.isArray(data.presets) && data.presets.length === 7) {
                 memoryBank = data.presets;
                 localStorage.setItem('matrix2Memory', JSON.stringify(memoryBank));
             }
 
-            // 3. Update the UI to reflect new data
             generateMatrixGrid();
             loadPresetToGrid();
             
-            // 4. If Live Mode is ON, immediately push the loaded grid to the hardware
             if (isLiveMode) {
                 sendMatrixRoutingTable();
             }
@@ -325,16 +323,15 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
 
 // --- EVENT TRACKER ATTACHMENTS ---
 document.getElementById('btn-connect').addEventListener('click', () => {
-    const inId = document.getElementById('midi-in').value;
     const outId = document.getElementById('midi-out').value;
-    midiInPort = midiAccess.inputs.get(inId);
+    hardwareRevision = document.getElementById('revision-select').value;
     midiOutPort = midiAccess.outputs.get(outId);
     isDemoMode = false;
     launchEditorEnvironment();
 });
 
 document.getElementById('btn-demo').addEventListener('click', () => {
-    midiInPort = null;
+    hardwareRevision = document.getElementById('revision-select').value;
     midiOutPort = null;
     isDemoMode = true;
     launchEditorEnvironment();
@@ -351,9 +348,7 @@ document.getElementById('btn-live-mode').addEventListener('click', (e) => {
     isLiveMode = !isLiveMode;
     e.target.innerText = isLiveMode ? "Live Mode: ON" : "Live Mode: OFF";
     e.target.classList.toggle('active', isLiveMode);
-    if (isLiveMode) {
-        sendMatrixRoutingTable();
-    }
+    if (isLiveMode) sendMatrixRoutingTable();
 });
 
 document.getElementById('btn-send-preset').onclick = sendMatrixRoutingTable;

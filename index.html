@@ -10,7 +10,7 @@
 
     <header id="setup-header">
         <h2><em>ALYSEUM</em> - MATRIX II editor <span class="revision">V.2</span></h2>
-        <p class="subtitle">Two MIDI ports (In and Out) are required; otherwise, use Demo mode</p>
+        <p class="subtitle">Select your hardware revision and MIDI Out port; or use Demo mode</p>
         
         <div id="browser-warning" class="warning-box hidden">
             <strong>MIDI Error:</strong> Your browser does not support Web MIDI with SysEx permissions. <br>
@@ -19,9 +19,13 @@
         
         <div id="midi-setup">
             <div class="port-select">
-                <label for="midi-in">MIDI In port</label>
-                <select id="midi-in"><option value="">Please Select</option></select>
+                <label for="revision-select">Hardware Revision</label>
+                <select id="revision-select">
+                    <option value="R.05">R.05 (16 channels editable)</option>
+                    <option value="R.03">R.03 (Column 16 disabled)</option>
+                </select>
             </div>
+            
             <div class="port-select">
                 <label for="midi-out">MIDI Out port</label>
                 <select id="midi-out"><option value="">Please Select</option></select>
@@ -68,7 +72,7 @@
             </div>
 
             <div class="sidebar-group">
-                <button id="btn-clear">Clear Matrix </button>
+                <button id="btn-clear">Clear Matrix</button>
             </div>
             
             <div class="sidebar-group" style="margin-top: auto;">
