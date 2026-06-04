@@ -223,7 +223,6 @@ function handleCellToggle(inNum, outNum) {
     if (isLiveMode) sendMatrixRoutingTable();
 }
 
-/* FIXED: Column 16 visual bypass implemented for R.03 */
 function refreshMatrixVisuals() {
     document.querySelectorAll('.cell').forEach(cell => {
         const inVal = parseInt(cell.dataset.in, 10);
@@ -270,6 +269,69 @@ function sendActivePresetChange() {
     if (isDemoMode || !midiOutPort) return;
     const preset = parseInt(document.getElementById('preset-select').value, 10);
     midiOutPort.send([...SYSEX_HEADER, 0x02, 0x01, preset, 0xF7]);
+}
+
+// --- BULK TRANSMISSION (SAVE ALL PRESETS) ---
+function transmitAllPresets() {
+    if (isDemoMode || !midiOutPort) {
+        alert("Please connect to a valid MIDI Out port to transmit all presets.");
+        return;
+    }
+
+    const btnSaveAll = document.getElementById('btn-save-all');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    
+    // Disable button and show progress bar
+    btnSaveAll.disabled = true;
+    progressContainer.classList.remove('hidden');
+    progressBar.style.width = '0%';
+
+    let totalSent = 0;
+    const totalPresets = 7 * 32; // 224 presets
+
+    function sendNext(bank, preset) {
+        if (bank >= 7) {
+            // Transmission complete
+            setTimeout(() => {
+                btnSaveAll.disabled = false;
+                progressContainer.classList.add('hidden');
+            }, 500);
+            return;
+        }
+
+        // Prepare routing data for the specific bank and preset
+        let transmissionRouting = [...memoryBank[bank][preset]];
+        
+        // Enforce hardware revision constraints
+        if (hardwareRevision === 'R.03') {
+            transmissionRouting[15] = 0;
+        }
+
+        let messagePayload = [...SYSEX_HEADER, 0x01, bank, preset];
+        messagePayload = messagePayload.concat(transmissionRouting);
+        messagePayload.push(0xF7);
+
+        midiOutPort.send(messagePayload);
+
+        // Update progress
+        totalSent++;
+        progressBar.style.width = Math.round((totalSent / totalPresets) * 100) + '%';
+
+        // Determine next indices
+        let nextPreset = preset + 1;
+        let nextBank = bank;
+        if (nextPreset >= 32) {
+            nextPreset = 0;
+            nextBank++;
+        }
+
+        // Wait 50ms before sending the next one to avoid MIDI buffer overflow
+        setTimeout(() => sendNext(nextBank, nextPreset), 50);
+    }
+
+    // Start the recursive transmission loop at Bank 0, Preset 0
+    sendNext(0, 0);
 }
 
 // --- LOCAL FILE IMPORT/EXPORT (BULK DUMP) ---
@@ -371,6 +433,8 @@ document.getElementById('btn-send-preset').onclick = () => {
     sendActivePresetChange();
     sendMatrixRoutingTable();
 };
+
+document.getElementById('btn-save-all').onclick = transmitAllPresets;
 
 document.getElementById('bank-select').onchange = () => {
     loadPresetToGrid();

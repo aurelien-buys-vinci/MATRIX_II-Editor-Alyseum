@@ -42,7 +42,7 @@
         </div>
     </header>
 
-    <main id="app-container" class="hidden">
+        <main id="app-container" class="hidden">
         
         <section id="matrix-section">
             <div id="matrix-container">
@@ -56,12 +56,16 @@
             </div>
 
             <div class="sidebar-group">
-                <h3>Hardware Memory</h3>
+                <h3>Device Actions</h3>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <select id="bank-select" style="flex: 1;"></select>
                     <select id="preset-select" style="flex: 1;"></select>
                 </div>
-                <button id="btn-send-preset" class="btn-secondary">Save current preset</button>
+                <button id="btn-send-preset" class="btn-secondary" style="margin-bottom: 10px;">Synchronize to MATRIX II</button>
+                <button id="btn-save-all" class="btn-secondary">Save All Presets</button>
+                <div id="progress-container" class="progress-wrapper hidden">
+                    <div id="progress-bar" class="progress-bar"></div>
+                </div>
             </div>
 
             <div class="sidebar-group">
