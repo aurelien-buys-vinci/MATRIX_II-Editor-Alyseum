@@ -240,7 +240,6 @@ function refreshMatrixVisuals() {
 }
 
 // --- OUTBOUND SYSEX & MIDI INTERFACES ---
-/* FIXED: Added explicit hardware validation constraint filter for R.03 */
 function sendMatrixRoutingTable() {
     if (isDemoMode || !midiOutPort) return;
     const bank = parseInt(document.getElementById('bank-select').value, 10);
@@ -360,21 +359,33 @@ document.getElementById('btn-live-mode').addEventListener('click', (e) => {
     isLiveMode = !isLiveMode;
     e.target.innerText = isLiveMode ? "Live Mode: ON" : "Live Mode: OFF";
     e.target.classList.toggle('active', isLiveMode);
-    if (isLiveMode) sendMatrixRoutingTable();
+    if (isLiveMode) {
+        sendActiveBankChange();
+        sendActivePresetChange();
+        sendMatrixRoutingTable();
+    }
 });
 
-document.getElementById('btn-send-preset').onclick = sendMatrixRoutingTable;
+document.getElementById('btn-send-preset').onclick = () => {
+    sendActiveBankChange();
+    sendActivePresetChange();
+    sendMatrixRoutingTable();
+};
 
 document.getElementById('bank-select').onchange = () => {
     loadPresetToGrid();
-    sendActiveBankChange();
-    if (isLiveMode) sendMatrixRoutingTable();
+    if (isLiveMode) {
+        sendActiveBankChange();
+        sendMatrixRoutingTable();
+    }
 };
 
 document.getElementById('preset-select').onchange = () => {
     loadPresetToGrid();
-    sendActivePresetChange();
-    if (isLiveMode) sendMatrixRoutingTable();
+    if (isLiveMode) {
+        sendActivePresetChange();
+        sendMatrixRoutingTable();
+    } 
 };
 
 startMidiInitialization();
