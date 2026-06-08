@@ -1,3 +1,5 @@
+const DELAY_BETWEEN_SYSEX = 100;
+
 // --- GLOBAL APPLICATION STATE ---
 function getSavedMemory() {
     try {
@@ -298,7 +300,7 @@ function transmitSequence(sequence, onComplete, progressCallback) {
         index++;
         if (progressCallback) progressCallback(index, total);
 
-        setTimeout(next, 50);
+        setTimeout(next, DELAY_BETWEEN_SYSEX);
     }
     next();
 }
