@@ -310,10 +310,14 @@ function transmitAllPresets() {
         return;
     }
 
+    const btnSavePreset = document.getElementById('btn-save-preset');
+    const btnSaveBank = document.getElementById('btn-save-bank');
     const btnSaveAll = document.getElementById('btn-save-all');
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
     
+    btnSavePreset.disabled = true;
+    btnSaveBank.disabled = true;
     btnSaveAll.disabled = true;
     progressContainer.classList.remove('hidden');
     progressBar.style.width = '0%';
@@ -329,6 +333,8 @@ function transmitAllPresets() {
         sequence,
         () => {
             setTimeout(() => {
+                btnSavePreset.disabled = false;
+                btnSaveBank.disabled = false;
                 btnSaveAll.disabled = false;
                 progressContainer.classList.add('hidden');
             }, 500);
@@ -347,11 +353,15 @@ function transmitActiveBank() {
     }
 
     const bank = parseInt(document.getElementById('bank-select').value, 10);
+    const btnSavePreset = document.getElementById('btn-save-preset');
     const btnSaveBank = document.getElementById('btn-save-bank');
+    const btnSaveAll = document.getElementById('btn-save-all');
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
     
+    btnSavePreset.disabled = true;
     btnSaveBank.disabled = true;
+    btnSaveAll.disabled = true;
     progressContainer.classList.remove('hidden');
     progressBar.style.width = '0%';
 
@@ -365,6 +375,8 @@ function transmitActiveBank() {
         () => {
             setTimeout(() => {
                 btnSaveBank.disabled = false;
+                btnSaveAll.disabled = false;
+                btnSavePreset.disabled = false;
                 progressContainer.classList.add('hidden');
             }, 500);
         },
@@ -468,7 +480,7 @@ document.getElementById('btn-live-mode').addEventListener('click', (e) => {
     }
 });
 
-document.getElementById('btn-send-preset').onclick = () => {
+document.getElementById('btn-save-preset').onclick = () => {
     sendMatrixRoutingTable();
 };
 
