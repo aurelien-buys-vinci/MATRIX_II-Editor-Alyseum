@@ -94,12 +94,14 @@ body {
 .sidebar-group select { background-color: #fff; padding: 6px; border-radius: 4px; }
 
 button {
-    background-color: #ff0000; color: white; border: 1px solid #e0e0e0;
+    background-color: #ff0000; 
+    color: white; 
+    border-color: #444;
     padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold;
     transition: all 0.2s; width: 100%;
 }
 button:hover:not(:disabled) { background-color: #777; }
-.btn-secondary { background-color: #555; border-color: #444; }
+.btn-secondary { background-color: #555; }
 .btn-secondary:hover:not(:disabled) { background-color: #777; }
 #btn-live-mode.active { background-color: #00aa00; border-color: #00ff00; }
 
