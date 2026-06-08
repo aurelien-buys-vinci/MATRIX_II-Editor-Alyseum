@@ -271,6 +271,38 @@ function sendActivePresetChange() {
     midiOutPort.send([...SYSEX_HEADER, 0x02, 0x01, preset, 0xF7]);
 }
 
+// --- BULK TRANSMISSION HELPERS ---
+function transmitSequence(sequence, onComplete, progressCallback) {
+    let index = 0;
+    const total = sequence.length;
+
+    function next() {
+        if (index >= total) {
+            onComplete();
+            return;
+        }
+
+        const { bank, preset } = sequence[index];
+        let transmissionRouting = [...memoryBank[bank][preset]];
+        
+        if (hardwareRevision === 'R.03') {
+            transmissionRouting[15] = 0;
+        }
+
+        let messagePayload = [...SYSEX_HEADER, 0x01, bank, preset];
+        messagePayload = messagePayload.concat(transmissionRouting);
+        messagePayload.push(0xF7);
+
+        midiOutPort.send(messagePayload);
+
+        index++;
+        if (progressCallback) progressCallback(index, total);
+
+        setTimeout(next, 50);
+    }
+    next();
+}
+
 // --- BULK TRANSMISSION (SAVE ALL PRESETS) ---
 function transmitAllPresets() {
     if (isDemoMode || !midiOutPort) {
@@ -282,56 +314,64 @@ function transmitAllPresets() {
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
     
-    // Disable button and show progress bar
     btnSaveAll.disabled = true;
     progressContainer.classList.remove('hidden');
     progressBar.style.width = '0%';
 
-    let totalSent = 0;
-    const totalPresets = 7 * 32; // 224 presets
+    const sequence = [];
+    for (let b = 0; b < 7; b++) {
+        for (let p = 0; p < 32; p++) {
+            sequence.push({ bank: b, preset: p });
+        }
+    }
 
-    function sendNext(bank, preset) {
-        if (bank >= 7) {
-            // Transmission complete
+    transmitSequence(
+        sequence,
+        () => {
             setTimeout(() => {
                 btnSaveAll.disabled = false;
                 progressContainer.classList.add('hidden');
             }, 500);
-            return;
+        },
+        (current, total) => {
+            progressBar.style.width = Math.round((current / total) * 100) + '%';
         }
+    );
+}
 
-        // Prepare routing data for the specific bank and preset
-        let transmissionRouting = [...memoryBank[bank][preset]];
-        
-        // Enforce hardware revision constraints
-        if (hardwareRevision === 'R.03') {
-            transmissionRouting[15] = 0;
-        }
-
-        let messagePayload = [...SYSEX_HEADER, 0x01, bank, preset];
-        messagePayload = messagePayload.concat(transmissionRouting);
-        messagePayload.push(0xF7);
-
-        midiOutPort.send(messagePayload);
-
-        // Update progress
-        totalSent++;
-        progressBar.style.width = Math.round((totalSent / totalPresets) * 100) + '%';
-
-        // Determine next indices
-        let nextPreset = preset + 1;
-        let nextBank = bank;
-        if (nextPreset >= 32) {
-            nextPreset = 0;
-            nextBank++;
-        }
-
-        // Wait 50ms before sending the next one to avoid MIDI buffer overflow
-        setTimeout(() => sendNext(nextBank, nextPreset), 50);
+// --- BULK BANK TRANSMISSION (SAVE ACTIVE BANK) ---
+function transmitActiveBank() {
+    if (isDemoMode || !midiOutPort) {
+        alert("Please connect to a valid MIDI Out port to transmit the bank.");
+        return;
     }
 
-    // Start the recursive transmission loop at Bank 0, Preset 0
-    sendNext(0, 0);
+    const bank = parseInt(document.getElementById('bank-select').value, 10);
+    const btnSaveBank = document.getElementById('btn-save-bank');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    
+    btnSaveBank.disabled = true;
+    progressContainer.classList.remove('hidden');
+    progressBar.style.width = '0%';
+
+    const sequence = [];
+    for (let p = 0; p < 32; p++) {
+        sequence.push({ bank: bank, preset: p });
+    }
+
+    transmitSequence(
+        sequence,
+        () => {
+            setTimeout(() => {
+                btnSaveBank.disabled = false;
+                progressContainer.classList.add('hidden');
+            }, 500);
+        },
+        (current, total) => {
+            progressBar.style.width = Math.round((current / total) * 100) + '%';
+        }
+    );
 }
 
 // --- LOCAL FILE IMPORT/EXPORT (BULK DUMP) ---
@@ -429,10 +469,10 @@ document.getElementById('btn-live-mode').addEventListener('click', (e) => {
 });
 
 document.getElementById('btn-send-preset').onclick = () => {
-    sendActiveBankChange();
-    sendActivePresetChange();
     sendMatrixRoutingTable();
 };
+
+document.getElementById('btn-save-bank').onclick = transmitActiveBank;
 
 document.getElementById('btn-save-all').onclick = transmitAllPresets;
 

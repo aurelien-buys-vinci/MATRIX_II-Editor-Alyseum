@@ -165,6 +165,6 @@ button:hover:not(:disabled) { background-color: #777; }
 .progress-bar {
     width: 0%;
     height: 100%;
-    background-color: #00aa00;
+    background-color: #007bff;
     transition: width 0.1s linear;
 }
