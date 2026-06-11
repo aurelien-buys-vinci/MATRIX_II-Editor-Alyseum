@@ -211,7 +211,7 @@ function generateMatrixGrid() {
 }
 
 // --- CORE CONTROL INTERACTION LOGIC ---
-function handleCellToggle(inNum, outNum) {
+async function handleCellToggle(inNum, outNum) {
     const outIndex = outNum - 1;
 
     if (routingState[outIndex] === inNum) {
@@ -223,7 +223,7 @@ function handleCellToggle(inNum, outNum) {
     syncActiveStateToMemory(); 
     refreshMatrixVisuals();
 
-    if (isLiveMode) sendMatrixRoutingTable();
+    if (isLiveMode) await sendMatrixRoutingTable();
 }
 
 function refreshMatrixVisuals() {
@@ -242,8 +242,15 @@ function refreshMatrixVisuals() {
 }
 
 // --- OUTBOUND SYSEX & MIDI INTERFACES ---
-function sendMatrixRoutingTable() {
+const sleep = ms => new Promise(res => setTimeout(res, ms));
+
+async function sendSysex(messagePayload) {
     if (isDemoMode || !midiOutPort) return;
+    midiOutPort.send(messagePayload);
+    await sleep(DELAY_BETWEEN_SYSEX);
+}
+
+async function sendMatrixRoutingTable() {
     const bank = parseInt(document.getElementById('bank-select').value, 10);
     const preset = parseInt(document.getElementById('preset-select').value, 10);
 
@@ -259,33 +266,25 @@ function sendMatrixRoutingTable() {
     messagePayload = messagePayload.concat(transmissionRouting);
     messagePayload.push(0xF7);
 
-    midiOutPort.send(messagePayload);
+    await sendSysex(messagePayload);
 }
 
-function sendActiveBankChange() {
-    if (isDemoMode || !midiOutPort) return;
+async function sendActiveBankChange() {
     const bank = parseInt(document.getElementById('bank-select').value, 10);
-    midiOutPort.send([...SYSEX_HEADER, 0x02, 0x00, bank, 0xF7]);
+    await sendSysex([...SYSEX_HEADER, 0x02, 0x00, bank, 0xF7]);
 }
 
-function sendActivePresetChange() {
-    if (isDemoMode || !midiOutPort) return;
+async function sendActivePresetChange() {
     const preset = parseInt(document.getElementById('preset-select').value, 10);
-    midiOutPort.send([...SYSEX_HEADER, 0x02, 0x01, preset, 0xF7]);
+    await sendSysex([...SYSEX_HEADER, 0x02, 0x01, preset, 0xF7]);
 }
 
 // --- BULK TRANSMISSION HELPERS ---
-function transmitSequence(sequence, onComplete, progressCallback) {
-    let index = 0;
+async function transmitSequence(sequence, progressCallback) {
     const total = sequence.length;
 
-    function next() {
-        if (index >= total) {
-            onComplete();
-            return;
-        }
-
-        const { bank, preset } = sequence[index];
+    for (let i = 0; i < total; i++) {
+        const { bank, preset } = sequence[i];
         let transmissionRouting = [...memoryBank[bank][preset]];
         
         if (hardwareRevision === 'R.03') {
@@ -296,18 +295,14 @@ function transmitSequence(sequence, onComplete, progressCallback) {
         messagePayload = messagePayload.concat(transmissionRouting);
         messagePayload.push(0xF7);
 
-        midiOutPort.send(messagePayload);
+        await sendSysex(messagePayload);
 
-        index++;
-        if (progressCallback) progressCallback(index, total);
-
-        setTimeout(next, DELAY_BETWEEN_SYSEX);
+        if (progressCallback) progressCallback(i + 1, total);
     }
-    next();
 }
 
 // --- BULK TRANSMISSION (SAVE ALL PRESETS) ---
-function transmitAllPresets() {
+async function transmitAllPresets() {
     if (isDemoMode || !midiOutPort) {
         alert("Please connect to a valid MIDI Out port to transmit all presets.");
         return;
@@ -332,24 +327,21 @@ function transmitAllPresets() {
         }
     }
 
-    transmitSequence(
+    await transmitSequence(
         sequence,
-        () => {
-            setTimeout(() => {
-                btnSavePreset.disabled = false;
-                btnSaveBank.disabled = false;
-                btnSaveAll.disabled = false;
-                progressContainer.classList.add('hidden');
-            }, 500);
-        },
         (current, total) => {
             progressBar.style.width = Math.round((current / total) * 100) + '%';
         }
     );
+
+    btnSavePreset.disabled = false;
+    btnSaveBank.disabled = false;
+    btnSaveAll.disabled = false;
+    progressContainer.classList.add('hidden');
 }
 
 // --- BULK BANK TRANSMISSION (SAVE ACTIVE BANK) ---
-function transmitActiveBank() {
+async function transmitActiveBank() {
     if (isDemoMode || !midiOutPort) {
         alert("Please connect to a valid MIDI Out port to transmit the bank.");
         return;
@@ -373,20 +365,17 @@ function transmitActiveBank() {
         sequence.push({ bank: bank, preset: p });
     }
 
-    transmitSequence(
+    await transmitSequence(
         sequence,
-        () => {
-            setTimeout(() => {
-                btnSaveBank.disabled = false;
-                btnSaveAll.disabled = false;
-                btnSavePreset.disabled = false;
-                progressContainer.classList.add('hidden');
-            }, 500);
-        },
         (current, total) => {
             progressBar.style.width = Math.round((current / total) * 100) + '%';
         }
     );
+
+    btnSaveBank.disabled = false;
+    btnSaveAll.disabled = false;
+    btnSavePreset.disabled = false;
+    progressContainer.classList.add('hidden');
 }
 
 // --- LOCAL FILE IMPORT/EXPORT (BULK DUMP) ---
@@ -420,7 +409,7 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
         try {
             const data = JSON.parse(event.target.result);
             
@@ -437,7 +426,7 @@ document.getElementById('file-upload').addEventListener('change', (e) => {
             loadPresetToGrid();
             
             if (isLiveMode) {
-                sendMatrixRoutingTable();
+                await sendMatrixRoutingTable();
             }
             
         } catch (err) {
@@ -465,45 +454,45 @@ document.getElementById('btn-demo').addEventListener('click', () => {
     launchEditorEnvironment();
 });
 
-document.getElementById('btn-clear').onclick = () => {
+document.getElementById('btn-clear').onclick = async () => {
     routingState.fill(0);
     syncActiveStateToMemory();
     refreshMatrixVisuals();
-    if (isLiveMode) sendMatrixRoutingTable();
+    if (isLiveMode) await sendMatrixRoutingTable();
 };
 
-document.getElementById('btn-live-mode').addEventListener('click', (e) => {
+document.getElementById('btn-live-mode').addEventListener('click', async (e) => {
     isLiveMode = !isLiveMode;
     e.target.innerText = isLiveMode ? "Live Mode: ON" : "Live Mode: OFF";
     e.target.classList.toggle('active', isLiveMode);
     if (isLiveMode) {
-        sendActiveBankChange();
-        sendActivePresetChange();
-        sendMatrixRoutingTable();
+        await sendActiveBankChange();
+        await sendActivePresetChange();
+        await sendMatrixRoutingTable();
     }
 });
 
-document.getElementById('btn-save-preset').onclick = () => {
-    sendMatrixRoutingTable();
+document.getElementById('btn-save-preset').onclick = async () => {
+    await sendMatrixRoutingTable();
 };
 
 document.getElementById('btn-save-bank').onclick = transmitActiveBank;
 
 document.getElementById('btn-save-all').onclick = transmitAllPresets;
 
-document.getElementById('bank-select').onchange = () => {
+document.getElementById('bank-select').onchange = async () => {
     loadPresetToGrid();
     if (isLiveMode) {
-        sendActiveBankChange();
-        sendMatrixRoutingTable();
+        await sendActiveBankChange();
+        await sendMatrixRoutingTable();
     }
 };
 
-document.getElementById('preset-select').onchange = () => {
+document.getElementById('preset-select').onchange = async () => {
     loadPresetToGrid();
     if (isLiveMode) {
-        sendActivePresetChange();
-        sendMatrixRoutingTable();
+        await sendActivePresetChange();
+        await sendMatrixRoutingTable();
     } 
 };
 
